@@ -1,6 +1,7 @@
 import joblib
 import pandas as pd
 import streamlit as st
+import math
 
 # ============================================================
 # CONFIGURATION
@@ -414,3 +415,195 @@ if predict_clicked:
 
             # Remove tiny negative numerical noise if present.
             importance = importance.clip(lower=0)
+
+            total = float(importance.sum())
+
+            if total > 0:
+
+                # Convert raw importance to percentages.
+                percentage = (
+                    importance / total
+                ) * 100
+
+                chart_data = pd.DataFrame(
+                    {
+                        "Feature": [
+                            LABELS[f]
+                            for f in FEATURES
+                        ],
+                        "Importance": importance.values,
+                        "Percentage": percentage.values,
+                        "Order": list(range(len(FEATURES))),
+                    }
+                )
+
+                # Text shown directly on each slice.
+                chart_data["Label"] = chart_data[
+                    "Percentage"
+                ].apply(
+                    lambda x: f"{x:.1f}%"
+                )
+
+                # ------------------------------------------------
+                # PIE CHART
+                #
+                # The slice start/end angles and label midpoint are
+                # calculated from the exact same percentages. This
+                # removes the stacking ambiguity that caused labels
+                # to appear on the wrong slices.
+                # ------------------------------------------------
+
+                cumulative = 0.0
+                starts = []
+                ends = []
+                mids = []
+
+                for pct in chart_data["Percentage"]:
+                    start = cumulative * 2 * math.pi / 100.0
+                    end = (cumulative + float(pct)) * 2 * math.pi / 100.0
+                    midpoint = (start + end) / 2.0
+
+                    starts.append(start)
+                    ends.append(end)
+                    mids.append(midpoint)
+
+                    cumulative += float(pct)
+
+                chart_data["StartAngle"] = starts
+                chart_data["EndAngle"] = ends
+                chart_data["MidAngle"] = mids
+
+                angle_scale = {
+                    "domain": [0, 2 * math.pi],
+                    "range": [0, 2 * math.pi],
+                }
+
+                pie_chart = {
+                    "width": "container",
+                    "height": 450,
+                    "layer": [
+                        # Pie slices
+                        {
+                            "mark": {
+                                "type": "arc",
+                                "outerRadius": 155,
+                                "stroke": "white",
+                                "strokeWidth": 1,
+                            },
+                            "encoding": {
+                                "theta": {
+                                    "field": "StartAngle",
+                                    "type": "quantitative",
+                                    "scale": angle_scale,
+                                },
+                                "theta2": {
+                                    "field": "EndAngle",
+                                    "type": "quantitative",
+                                    "scale": angle_scale,
+                                },
+                                "color": {
+                                    "field": "Feature",
+                                    "type": "nominal",
+                                    "legend": {
+                                        "title": "Features",
+                                        "orient": "right",
+                                    },
+                                },
+                                "tooltip": [
+                                    {
+                                        "field": "Feature",
+                                        "type": "nominal",
+                                        "title": "Feature",
+                                    },
+                                    {
+                                        "field": "Percentage",
+                                        "type": "quantitative",
+                                        "format": ".1f",
+                                        "title": "Importance (%)",
+                                    },
+                                ],
+                            },
+                        },
+
+                        # Percentage labels
+                        {
+                            "mark": {
+                                "type": "text",
+                                "radius": 105,
+                                "fontSize": 15,
+                                "fontWeight": "normal",
+                                "align": "center",
+                                "baseline": "middle",
+                            },
+                            "encoding": {
+                                "theta": {
+                                    "field": "MidAngle",
+                                    "type": "quantitative",
+                                    "scale": angle_scale,
+                                },
+                                "text": {
+                                    "field": "Label",
+                                    "type": "nominal",
+                                },
+                                "color": {
+                                    "value": "white",
+                                },
+                                "detail": {
+                                    "field": "Feature",
+                                },
+                            },
+                        },
+                    ],
+                    "view": {
+                        "stroke": None,
+                    },
+                }
+
+                st.vega_lite_chart(
+                    chart_data,
+                    pie_chart,
+                    use_container_width=True,
+                )
+
+                st.caption(
+                    "Percentages show each feature's relative "
+                    "importance in the trained AI model. "
+                    "They do not represent the student's "
+                    "percentage of effort."
+                )
+
+            else:
+
+                st.info(
+                    "The model returned zero feature-importance values."
+                )
+
+        else:
+
+            st.info(
+                "The model's feature-importance data does not "
+                "match the five input features."
+            )
+
+    else:
+
+        st.info(
+            "This trained model does not provide feature importance."
+        )
+
+
+# ============================================================
+# FOOTER
+# ============================================================
+
+st.divider()
+
+st.markdown(
+    """
+    <div class="footer-text">
+        🎓 CBSE Class 11 AI Capstone Project<br>
+        Student Academic Performance Predictor
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
