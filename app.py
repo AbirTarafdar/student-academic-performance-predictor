@@ -744,7 +744,3 @@ st.markdown(
     """,
     unsafe_allow_html=True,
 )
-
-This version keeps your current model calculation honest, adds the percentage labels, and makes the custom cards/theme styling adapt much better between light and dark mode.
-
-After replacing "app.py": save/commit it, wait for Streamlit Cloud to show the new deployment, then test the same "36 / 95 / 92 / 9.5 / 7" inputs. If it still gives 84.9, that's confirmation that the remaining issue is inside "model.pkl", not this interface code.
